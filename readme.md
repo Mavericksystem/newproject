@@ -361,3 +361,21 @@ These are **future possibilities, not initial commitments**.
 > **Don't hide AI execution behind a chat window. Make it observable, controllable, and debuggable.**
 
 The project focuses on the engineering problems that appear when AI agents become **software processes that must be scheduled, coordinated, monitored, and recovered**.
+
+
+# Tech stack(not yet finalized)
+
+* Desktop: Tauri + React + TypeScript
+* Backend/orchestrator: Python + FastAPI
+* Agent runtime: Python initially
+* Local inference: llama.cpp / Ollama — evaluate based on requirements
+* Database: SQLite
+* Realtime: WebSockets
+* Workflow/state: custom state machine initially
+* Rust: Tauri + performance-critical runtime components later
+* C++: only if we need native inference/runtime integration
+* Go: not initially — introduce only if a real service boundary justifies it
+* Packaging: Tauri
+* Testing: pytest + Vitest
+* Observability: OpenTelemetry, if useful after the core execution model is stable
+* Container/sandboxing: Docker where isolation is required
