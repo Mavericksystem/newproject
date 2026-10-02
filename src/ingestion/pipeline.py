@@ -83,3 +83,36 @@ def share(a, b):
  
 def safe_name(s):
     return re.sub(r"[^A-Za-z0-9_-]+", "_", s)[:60]
+
+def summarize(name, a):
+    n = a.revisions
+    d = {
+        "pages": a.pages,
+        "revisions": n,
+        "pct_minor": share(a.minor, n),
+        "pct_anonymous_ip": share(a.anon, n),
+        "pct_bot_named": share(a.bot_named, n),
+        "pct_identity_reverts": share(a.reverts, n),
+        "pct_reverted_revisions": share(a.reverted, n),
+        "pct_null_edits": share(a.null_edits, n),
+        "pct_revert_in_comment": share(a.revert_comment, n),
+        "pct_no_comment": share(a.no_comment, n),
+        "blanked_revisions": a.blanked,
+        "mass_removal_revisions": a.mass_removal,
+        "deleted_text_revisions": a.deleted_text,
+        "deleted_contributor_revisions": a.deleted_contrib,
+        "revision_size_bytes": pctiles(a.sizes),
+        "abs_size_change_bytes": pctiles(a.abs_deltas),
+        "total_wikitext_gb": round(a.bytes_total / 1e9, 3),
+        "pct_bytes_duplicate_within_page": share(a.bytes_dup_in_page, a.bytes_total),
+        "revisions_per_year": dict(sorted(a.years.items())),
+    }
+    print(f"\n===== {name} =====")
+    for k, v in d.items():
+        if k == "revisions_per_year":
+            continue
+        print(f"{k:34} {v}")
+    print("revisions per year:")
+    for y, c in sorted(a.years.items()):
+        print(f"  {y}  {c:>8}  {'#' * int(50 * c / max(a.years.values()))}")
+    return d
