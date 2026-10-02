@@ -234,3 +234,31 @@ def main():
                         global_unique_bytes += size
  
                 last_text = text
+                # samples: first, last, and a reservoir of random revisions
+                if cur_title in sample_titles and text is not None:
+                    entry = (rid, ts, text)
+                    if idx == 0:
+                        sample_first = entry
+                    sample_last = entry
+                    if len(sample_rand) < args.random_samples:
+                        sample_rand.append(entry)
+                    else:
+                        r = rng.randrange(idx + 1)
+                        if r < args.random_samples:
+                            sample_rand[r] = entry
+ 
+                idx += 1
+                elem.clear()
+ 
+            elif tag == NS + "page":
+                ns_val = child_text(elem, NS + "ns")
+                title = child_text(elem, NS + "title")
+                is_redirect = elem.find(NS + "redirect") is not None
+                is_article = ns_val == "0" and not is_redirect
+                pa.pages = 1
+                pa.reverted = sum(reverted_flags[: idx]) if reverted_flags else 0
+ 
+                ns_pages[ns_val] += 1
+                ns_revs[ns_val] += pa.revisions
+                if is_redirect:
+                    ns_redirects[ns_val] += 1
