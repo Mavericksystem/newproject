@@ -332,3 +332,40 @@ def main():
     }
     print("\n===== GLOBAL DEDUPE (store wikitext by sha1) =====")
     print(report["global_dedupe"])
+    art_rows = [r for r in rows if r["ns"] == "0" and not r["is_redirect"]]
+    with_ib = [r for r in art_rows if r["has_infobox"] is True]
+    report["articles_latest_version"] = {
+        "articles": len(art_rows),
+        "pct_with_infobox": share(len(with_ib), len(art_rows)),
+        "median_refs": statistics.median([r["n_refs"] for r in art_rows]) if art_rows else 0,
+        "median_wikilinks": statistics.median([r["n_wikilinks"] for r in art_rows]) if art_rows else 0,
+        "median_categories": statistics.median([r["n_categories"] for r in art_rows]) if art_rows else 0,
+        "median_templates": statistics.median([r["n_templates"] for r in art_rows]) if art_rows else 0,
+        "latest_size_bytes": pctiles([r["latest_size"] for r in art_rows]),
+        "latest_total_mb": round(sum(r["latest_size"] for r in art_rows) / 1e6, 1),
+    }
+    print("\n===== LATEST VERSION OF ARTICLES =====")
+    for k, v in report["articles_latest_version"].items():
+        print(f"{k:34} {v}")
+ 
+    top_editors = editors.most_common(15)
+    report["top_registered_editors"] = top_editors
+    report["content_models"] = {f"{m}/{fmt}": c for (m, fmt), c in models.items()}
+    print("\n===== TOP REGISTERED EDITORS (check for bots) =====")
+    for name, c in top_editors:
+        print(f"{c:>7}  {name}")
+    print("\n===== CONTENT MODELS =====")
+    print(report["content_models"])
+ 
+    with open(outdir / "profile_report.json", "w", encoding="utf-8") as fh:
+        json.dump(report, fh, indent=2, default=str)
+    with open(outdir / "page_profile.csv", "w", newline="", encoding="utf-8") as fh:
+        w = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
+        w.writeheader()
+        w.writerows(sorted(rows, key=lambda r: r["revisions"], reverse=True))
+ 
+    print(f"\nDone in {time.time() - t0:.0f}s. Wrote {outdir}/profile_report.json, page_profile.csv, samples/")
+ 
+ 
+if __name__ == "__main__":
+    main()
