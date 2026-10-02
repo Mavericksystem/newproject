@@ -116,3 +116,69 @@ def summarize(name, a):
     for y, c in sorted(a.years.items()):
         print(f"  {y}  {c:>8}  {'#' * int(50 * c / max(a.years.values()))}")
     return d
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("dump")
+    ap.add_argument("--outdir", default="profile_out")
+    ap.add_argument("--sample-titles", nargs="*", default=DEFAULT_SAMPLES)
+    ap.add_argument("--random-samples", type=int, default=3)
+    args = ap.parse_args()
+ 
+    outdir = Path(args.outdir)
+    (outdir / "samples").mkdir(parents=True, exist_ok=True)
+    sample_titles = set(args.sample_titles)
+    rng = random.Random(42)
+ 
+    all_agg, art_agg = Agg(), Agg()
+    ns_pages, ns_redirects, ns_revs = Counter(), Counter(), Counter()
+    models = Counter()
+    global_seen = set()
+    global_unique_bytes = 0
+    rows = []
+ 
+    NS = None
+    cur_title = None
+    # per-page state
+    pa = Agg()
+    seq_pos = {}                 # sha1 -> last index in this page
+    reverted_flags = bytearray()
+    seen_in_page = set()
+    prev_size = None
+    idx = 0
+    last_text = None
+    editors = Counter()
+    sample_first = sample_last = None
+    sample_rand = []
+    t0 = time.time()
+
+    with open_dump(args.dump) as f:
+        for event, elem in etree.iterparse(f, events=("start", "end"), huge_tree=True):
+            if NS is None:
+                uri = etree.QName(elem).namespace
+                NS = "{%s}" % uri if uri else ""
+            if event != "end":
+                continue
+            tag = elem.tag
+ 
+            if tag == NS + "title":
+                cur_title = elem.text
+ 
+            elif tag == NS + "revision":
+                rid = child_text(elem, NS + "id")
+                ts = child_text(elem, NS + "timestamp") or ""
+                sha1 = child_text(elem, NS + "sha1")
+                models[(child_text(elem, NS + "model"), child_text(elem, NS + "format"))] += 1
+ 
+                contrib = elem.find(NS + "contributor")
+                uname = None
+                if contrib is None or contrib.get("deleted"):
+                    pa.deleted_contrib += 1
+                elif contrib.find(NS + "ip") is not None:
+                    pa.anon += 1
+                else:
+                    uname = child_text(contrib, NS + "username")
+                    if looks_like_bot(uname):
+                        pa.bot_named += 1
+                    if uname:
+                        editors[uname] += 1
