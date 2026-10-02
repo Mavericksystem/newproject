@@ -213,3 +213,24 @@ def main():
                     if prev_size > 0 and size < 0.1 * prev_size:
                         pa.mass_removal += 1
                 prev_size = size
+
+                # identity-revert detection via sha1
+                if sha1:
+                    if sha1 in seq_pos:
+                        j = seq_pos[sha1]
+                        if j == idx - 1:
+                            pa.null_edits += 1
+                        else:
+                            pa.reverts += 1
+                            reverted_flags.extend(b"\x00" * max(0, idx - len(reverted_flags)))
+                            for k in range(j + 1, idx):
+                                reverted_flags[k] = 1
+                    seq_pos[sha1] = idx
+                    if sha1 in seen_in_page:
+                        pa.bytes_dup_in_page += size
+                    seen_in_page.add(sha1)
+                    if sha1 not in global_seen:
+                        global_seen.add(sha1)
+                        global_unique_bytes += size
+ 
+                last_text = text
