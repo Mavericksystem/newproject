@@ -262,3 +262,40 @@ def main():
                 ns_revs[ns_val] += pa.revisions
                 if is_redirect:
                     ns_redirects[ns_val] += 1
+
+                    row = {
+                    "page_id": child_text(elem, NS + "id"),
+                    "ns": ns_val,
+                    "title": title,
+                    "is_redirect": is_redirect,
+                    "revisions": pa.revisions,
+                    "pct_reverted": share(pa.reverted, pa.revisions),
+                    "pct_anon": share(pa.anon, pa.revisions),
+                    "pct_bot_named": share(pa.bot_named, pa.revisions),
+                    "pct_minor": share(pa.minor, pa.revisions),
+                    "latest_size": pa.sizes[-1] if len(pa.sizes) else 0,
+                    "has_infobox": "",
+                    "n_refs": "",
+                    "n_wikilinks": "",
+                    "n_categories": "",
+                    "n_templates": "",
+                }
+                if is_article and last_text:
+                    row["has_infobox"] = bool(INFOBOX.search(last_text))
+                    row["n_refs"] = last_text.count("<ref")
+                    row["n_wikilinks"] = last_text.count("[[")
+                    row["n_categories"] = len(re.findall(r"\[\[\s*Category:", last_text, re.I))
+                    row["n_templates"] = last_text.count("{{")
+                rows.append(row)
+ 
+                all_agg.merge(pa)
+                if is_article:
+                    art_agg.merge(pa)
+ 
+                if title in sample_titles and sample_first:
+                    picks = [("first", sample_first)]
+                    picks += [(f"random{i + 1}", e) for i, e in enumerate(sample_rand)]
+                    picks.append(("last", sample_last))
+                    for label, (rid, ts, text) in picks:
+                        fn = outdir / "samples" / f"{safe_name(title)}__{label}__rev{rid}__{ts[:10]}.wiki"
+                        fn.write_text(text, encoding="utf-8")
