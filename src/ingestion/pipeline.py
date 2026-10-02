@@ -35,4 +35,35 @@ def child_text(elem, tag):
 def looks_like_bot(name):
     n = (name or "").lower()
     return n.endswith("bot") or " bot" in n or "bot " in n or "(bot)" in n
+
+ class Agg:
+    """Counters that can be merged: one per page, then ALL and ARTICLES."""
  
+    def __init__(self):
+        self.pages = 0
+        self.revisions = 0
+        self.minor = 0
+        self.anon = 0
+        self.bot_named = 0
+        self.reverts = 0          # revisions restoring an earlier identical state
+        self.reverted = 0         # revisions undone by a later revert
+        self.null_edits = 0       # identical to the immediately previous revision
+        self.revert_comment = 0   # edit summary looks like a revert
+        self.blanked = 0          # revision text size == 0
+        self.mass_removal = 0     # size dropped below 10% of previous
+        self.deleted_text = 0
+        self.deleted_contrib = 0
+        self.no_comment = 0
+        self.bytes_total = 0
+        self.bytes_dup_in_page = 0
+        self.years = Counter()
+        self.sizes = array("q")
+        self.abs_deltas = array("q")
+ 
+    def merge(self, o):
+        for k, v in o.__dict__.items():
+            if isinstance(v, int):
+                setattr(self, k, getattr(self, k) + v)
+        self.years.update(o.years)
+        self.sizes.extend(o.sizes)
+        self.abs_deltas.extend(o.abs_deltas)
