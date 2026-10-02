@@ -67,3 +67,19 @@ def looks_like_bot(name):
         self.years.update(o.years)
         self.sizes.extend(o.sizes)
         self.abs_deltas.extend(o.abs_deltas)
+
+def pctiles(arr, ps=(50, 90, 99)):
+    if not len(arr):
+        return {}
+    s = sorted(arr)
+    out = {f"p{p}": s[min(len(s) - 1, int(len(s) * p / 100))] for p in ps}
+    out["max"] = s[-1]
+    return out
+ 
+ 
+def share(a, b):
+    return round(100 * a / b, 2) if b else 0.0
+ 
+ 
+def safe_name(s):
+    return re.sub(r"[^A-Za-z0-9_-]+", "_", s)[:60]
