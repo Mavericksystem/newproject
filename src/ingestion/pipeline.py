@@ -299,3 +299,36 @@ def main():
                     for label, (rid, ts, text) in picks:
                         fn = outdir / "samples" / f"{safe_name(title)}__{label}__rev{rid}__{ts[:10]}.wiki"
                         fn.write_text(text, encoding="utf-8")
+                        # reset page state
+                pa = Agg()
+                seq_pos, seen_in_page = {}, set()
+                reverted_flags = bytearray()
+                prev_size, idx, last_text = None, 0, None
+                sample_first = sample_last = None
+                sample_rand = []
+ 
+                elem.clear()
+                while elem.getprevious() is not None:
+                    del elem.getparent()[0]
+                if len(rows) % 100 == 0:
+                    print(f"  {len(rows)} pages... ({time.time() - t0:.0f}s)", file=sys.stderr)
+ 
+    # ---- reports ----
+    report = {}
+    report["namespaces"] = {
+        str(k): {"pages": ns_pages[k], "redirects": ns_redirects[k], "revisions": ns_revs[k]}
+        for k in sorted(ns_pages, key=lambda x: int(x or 0))
+    }
+    print("\n===== NAMESPACES =====")
+    for k, v in report["namespaces"].items():
+        print(f"ns={k:>3}  pages={v['pages']:>6}  redirects={v['redirects']:>6}  revisions={v['revisions']:>8}")
+ 
+    report["all"] = summarize("ALL PAGES", all_agg)
+    report["articles"] = summarize("ARTICLES (ns0, non-redirect)", art_agg)
+    report["global_dedupe"] = {
+        "total_wikitext_gb": round(all_agg.bytes_total / 1e9, 3),
+        "unique_by_sha1_gb": round(global_unique_bytes / 1e9, 3),
+        "saved_pct": share(all_agg.bytes_total - global_unique_bytes, all_agg.bytes_total),
+    }
+    print("\n===== GLOBAL DEDUPE (store wikitext by sha1) =====")
+    print(report["global_dedupe"])
