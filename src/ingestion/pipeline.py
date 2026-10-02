@@ -182,3 +182,34 @@ def main():
                         pa.bot_named += 1
                     if uname:
                         editors[uname] += 1
+
+                        if elem.find(NS + "minor") is not None:
+                    pa.minor += 1
+ 
+                cm = elem.find(NS + "comment")
+                ctext = cm.text if cm is not None and not cm.get("deleted") else None
+                if not ctext:
+                    pa.no_comment += 1
+                elif REVERT_COMMENT.search(ctext):
+                    pa.revert_comment += 1
+ 
+                t = elem.find(NS + "text")
+                size = 0
+                text = None
+                if t is not None:
+                    text = t.text
+                    if t.get("deleted"):
+                        pa.deleted_text += 1
+                    declared = t.get("bytes")
+                    size = int(declared) if declared else len((text or "").encode())
+                pa.sizes.append(size)
+                pa.bytes_total += size
+                pa.revisions += 1
+                pa.years[ts[:4]] += 1
+                if size == 0:
+                    pa.blanked += 1
+                if prev_size is not None:
+                    pa.abs_deltas.append(abs(size - prev_size))
+                    if prev_size > 0 and size < 0.1 * prev_size:
+                        pa.mass_removal += 1
+                prev_size = size
