@@ -1,3 +1,20 @@
+#!/usr/bin/env python3
+"""
+Deep profile of a MediaWiki XML export (streaming, flat memory).
+
+Usage:
+    pip install lxml
+    python profile_dump.py data/raw/dump.xml.bz2
+    python profile_dump.py dump.xml.bz2 --sample-titles "John Thune" "Peter Crouch"
+
+Outputs (in --outdir, default ./profile_out):
+    profile_report.json   all summary numbers
+    page_profile.csv      one row per page (revert rate, editors, latest-version features)
+    samples/              raw wikitext of first / random / last revisions of sample pages
+                          -> READ THESE BY HAND before designing the parser
+
+"Articles" below = namespace 0 and not a redirect.
+"""
 import argparse
 import bz2
 import csv
@@ -11,34 +28,35 @@ import time
 from array import array
 from collections import Counter
 from pathlib import Path
- 
+
 from lxml import etree
- 
+
 DEFAULT_SAMPLES = ["John Thune", "Peter Crouch", "Asian giant hornet", "Bisphenol A", "Elon University"]
 REVERT_COMMENT = re.compile(r"\b(revert(ed)?|rv|rvv|undid|undo|rollback|reverting)\b", re.I)
 INFOBOX = re.compile(r"\{\{\s*infobox", re.I)
- 
- 
+
+
 def open_dump(path):
     if path.endswith(".bz2"):
         return bz2.open(path, "rb")
     if path.endswith(".gz"):
         return gzip.open(path, "rb")
     return open(path, "rb")
- 
- 
+
+
 def child_text(elem, tag):
     c = elem.find(tag)
     return c.text if c is not None else None
- 
- 
+
+
 def looks_like_bot(name):
     n = (name or "").lower()
     return n.endswith("bot") or " bot" in n or "bot " in n or "(bot)" in n
 
- class Agg:
+
+class Agg:
     """Counters that can be merged: one per page, then ALL and ARTICLES."""
- 
+
     def __init__(self):
         self.pages = 0
         self.revisions = 0
@@ -59,7 +77,7 @@ def looks_like_bot(name):
         self.years = Counter()
         self.sizes = array("q")
         self.abs_deltas = array("q")
- 
+
     def merge(self, o):
         for k, v in o.__dict__.items():
             if isinstance(v, int):
@@ -68,6 +86,7 @@ def looks_like_bot(name):
         self.sizes.extend(o.sizes)
         self.abs_deltas.extend(o.abs_deltas)
 
+
 def pctiles(arr, ps=(50, 90, 99)):
     if not len(arr):
         return {}
@@ -75,14 +94,15 @@ def pctiles(arr, ps=(50, 90, 99)):
     out = {f"p{p}": s[min(len(s) - 1, int(len(s) * p / 100))] for p in ps}
     out["max"] = s[-1]
     return out
- 
- 
+
+
 def share(a, b):
     return round(100 * a / b, 2) if b else 0.0
- 
- 
+
+
 def safe_name(s):
     return re.sub(r"[^A-Za-z0-9_-]+", "_", s)[:60]
+
 
 def summarize(name, a):
     n = a.revisions
@@ -117,6 +137,7 @@ def summarize(name, a):
         print(f"  {y}  {c:>8}  {'#' * int(50 * c / max(a.years.values()))}")
     return d
 
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("dump")
@@ -124,19 +145,19 @@ def main():
     ap.add_argument("--sample-titles", nargs="*", default=DEFAULT_SAMPLES)
     ap.add_argument("--random-samples", type=int, default=3)
     args = ap.parse_args()
- 
+
     outdir = Path(args.outdir)
     (outdir / "samples").mkdir(parents=True, exist_ok=True)
     sample_titles = set(args.sample_titles)
     rng = random.Random(42)
- 
+
     all_agg, art_agg = Agg(), Agg()
     ns_pages, ns_redirects, ns_revs = Counter(), Counter(), Counter()
     models = Counter()
     global_seen = set()
     global_unique_bytes = 0
     rows = []
- 
+
     NS = None
     cur_title = None
     # per-page state
@@ -160,16 +181,16 @@ def main():
             if event != "end":
                 continue
             tag = elem.tag
- 
+
             if tag == NS + "title":
                 cur_title = elem.text
- 
+
             elif tag == NS + "revision":
                 rid = child_text(elem, NS + "id")
                 ts = child_text(elem, NS + "timestamp") or ""
                 sha1 = child_text(elem, NS + "sha1")
                 models[(child_text(elem, NS + "model"), child_text(elem, NS + "format"))] += 1
- 
+
                 contrib = elem.find(NS + "contributor")
                 uname = None
                 if contrib is None or contrib.get("deleted"):
@@ -183,16 +204,16 @@ def main():
                     if uname:
                         editors[uname] += 1
 
-                        if elem.find(NS + "minor") is not None:
+                if elem.find(NS + "minor") is not None:
                     pa.minor += 1
- 
+
                 cm = elem.find(NS + "comment")
                 ctext = cm.text if cm is not None and not cm.get("deleted") else None
                 if not ctext:
                     pa.no_comment += 1
                 elif REVERT_COMMENT.search(ctext):
                     pa.revert_comment += 1
- 
+
                 t = elem.find(NS + "text")
                 size = 0
                 text = None
@@ -232,8 +253,9 @@ def main():
                     if sha1 not in global_seen:
                         global_seen.add(sha1)
                         global_unique_bytes += size
- 
+
                 last_text = text
+
                 # samples: first, last, and a reservoir of random revisions
                 if cur_title in sample_titles and text is not None:
                     entry = (rid, ts, text)
@@ -246,10 +268,10 @@ def main():
                         r = rng.randrange(idx + 1)
                         if r < args.random_samples:
                             sample_rand[r] = entry
- 
+
                 idx += 1
                 elem.clear()
- 
+
             elif tag == NS + "page":
                 ns_val = child_text(elem, NS + "ns")
                 title = child_text(elem, NS + "title")
@@ -257,13 +279,13 @@ def main():
                 is_article = ns_val == "0" and not is_redirect
                 pa.pages = 1
                 pa.reverted = sum(reverted_flags[: idx]) if reverted_flags else 0
- 
+
                 ns_pages[ns_val] += 1
                 ns_revs[ns_val] += pa.revisions
                 if is_redirect:
                     ns_redirects[ns_val] += 1
 
-                    row = {
+                row = {
                     "page_id": child_text(elem, NS + "id"),
                     "ns": ns_val,
                     "title": title,
@@ -287,11 +309,11 @@ def main():
                     row["n_categories"] = len(re.findall(r"\[\[\s*Category:", last_text, re.I))
                     row["n_templates"] = last_text.count("{{")
                 rows.append(row)
- 
+
                 all_agg.merge(pa)
                 if is_article:
                     art_agg.merge(pa)
- 
+
                 if title in sample_titles and sample_first:
                     picks = [("first", sample_first)]
                     picks += [(f"random{i + 1}", e) for i, e in enumerate(sample_rand)]
@@ -299,20 +321,21 @@ def main():
                     for label, (rid, ts, text) in picks:
                         fn = outdir / "samples" / f"{safe_name(title)}__{label}__rev{rid}__{ts[:10]}.wiki"
                         fn.write_text(text, encoding="utf-8")
-                        # reset page state
+
+                # reset page state
                 pa = Agg()
                 seq_pos, seen_in_page = {}, set()
                 reverted_flags = bytearray()
                 prev_size, idx, last_text = None, 0, None
                 sample_first = sample_last = None
                 sample_rand = []
- 
+
                 elem.clear()
                 while elem.getprevious() is not None:
                     del elem.getparent()[0]
                 if len(rows) % 100 == 0:
                     print(f"  {len(rows)} pages... ({time.time() - t0:.0f}s)", file=sys.stderr)
- 
+
     # ---- reports ----
     report = {}
     report["namespaces"] = {
@@ -322,7 +345,7 @@ def main():
     print("\n===== NAMESPACES =====")
     for k, v in report["namespaces"].items():
         print(f"ns={k:>3}  pages={v['pages']:>6}  redirects={v['redirects']:>6}  revisions={v['revisions']:>8}")
- 
+
     report["all"] = summarize("ALL PAGES", all_agg)
     report["articles"] = summarize("ARTICLES (ns0, non-redirect)", art_agg)
     report["global_dedupe"] = {
@@ -332,6 +355,7 @@ def main():
     }
     print("\n===== GLOBAL DEDUPE (store wikitext by sha1) =====")
     print(report["global_dedupe"])
+
     art_rows = [r for r in rows if r["ns"] == "0" and not r["is_redirect"]]
     with_ib = [r for r in art_rows if r["has_infobox"] is True]
     report["articles_latest_version"] = {
@@ -347,7 +371,7 @@ def main():
     print("\n===== LATEST VERSION OF ARTICLES =====")
     for k, v in report["articles_latest_version"].items():
         print(f"{k:34} {v}")
- 
+
     top_editors = editors.most_common(15)
     report["top_registered_editors"] = top_editors
     report["content_models"] = {f"{m}/{fmt}": c for (m, fmt), c in models.items()}
@@ -356,16 +380,16 @@ def main():
         print(f"{c:>7}  {name}")
     print("\n===== CONTENT MODELS =====")
     print(report["content_models"])
- 
+
     with open(outdir / "profile_report.json", "w", encoding="utf-8") as fh:
         json.dump(report, fh, indent=2, default=str)
     with open(outdir / "page_profile.csv", "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
         w.writeheader()
         w.writerows(sorted(rows, key=lambda r: r["revisions"], reverse=True))
- 
+
     print(f"\nDone in {time.time() - t0:.0f}s. Wrote {outdir}/profile_report.json, page_profile.csv, samples/")
- 
- 
+
+
 if __name__ == "__main__":
     main()
