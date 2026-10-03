@@ -1,0 +1,105 @@
+# ---------- Project data (never commit) ----------
+data/
+*.xml
+*.xml.bz2
+*.xml.gz
+*.bz2
+*.zst
+*.parquet
+*.sqlite
+*.db
+
+# Profiling output (keep only the summary report)
+profile_out/*
+!profile_out/profile_report.json
+page_stats.csv
+
+# Model weights and indexes
+models/
+*.gguf
+*.safetensors
+*.bin
+*.faiss
+*.index
+
+# Postgres / local service volumes
+pgdata/
+.postgres/
+redis-data/
+minio-data/
+
+# ---------- Secrets / config ----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+newpro/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.coverage
+htmlcov/
+dist/
+build/
+
+# ---------- Go ----------
+*.exe
+*.test
+*.out
+vendor/
+bin/
+go.work.sum
+
+# ---------- Rust ----------
+target/
+**/*.rs.bk
+
+# ---------- C / C++ ----------
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dll
+*.dylib
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+
+# ---------- TypeScript / Node ----------
+node_modules/
+.next/
+.vite/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+pnpm-debug.log*
+
+# ---------- Logs, traces, benchmarks output ----------
+logs/
+*.log
+traces/
+bench_out/
+*.prof
+*.pprof
+flamegraph.svg
+
+# ---------- Editors / OS ----------
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
