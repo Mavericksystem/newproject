@@ -30,3 +30,10 @@ WHERE r.content_hash IS NOT NULL AND c.content_hast IS NULL;
 \echo '---4. Integrity: gaps in seq per page (expect 0 rows) ---'
 SELECT page_id, max(seq) + 1 AS expected, count (*) AS actual
 FROM raw.revision GROUP BY page_id HAVING max(seq) + 1 <> count(*);
+
+\echo '---5. Storage ---'
+SELECT count(*)     AS unique_texts,
+    pg_size_pretty(sum(size_bytes))     AS raw_size,
+    pg_size_pretty(sum(compressed_bytes))     AS raw_size,
+    round(sum(size_bytes))::numeric / sum(compressed_bytes), 1) AS ratio
+FROM raw.content;
