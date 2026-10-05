@@ -8,6 +8,7 @@ FROM raw.page p JOIN raw.revision r USING (page_id)
 GROUP BY p.title
 ORDER BY revisions DESC;
 
+
 \echo '--- 2. Noise flags per page(% of revision) ---'
 SELECT p.title,
        round(100.0 * avg(is_minor::int)m 1)     AS minor,
@@ -16,4 +17,7 @@ SELECT p.title,
        round(100.0 * avg(is_identity_revert::int), 1)   AS identity_revers,
        sum(is_blanked::int)     AS blacked,
        sum(is_mass_removal::int) AS mass_removal, sum(text_deleted::int)
-       sum(text_deleted::int)
+       sum(text_deleted::int)   AS text_deleted
+
+    FROM raw.page p JOIN raw.revision r USING (page_id)
+    GROUP BY p.title;
