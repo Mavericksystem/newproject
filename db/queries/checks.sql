@@ -21,3 +21,8 @@ SELECT p.title,
 
     FROM raw.page p JOIN raw.revision r USING (page_id)
     GROUP BY p.title;
+
+\echo '-- 3. Itegrity: revision pointing at missing conten (expect 0) ---'
+SELECT count(*) AS missing_content
+FROM raw.revision r LEFT JOIN raw.conten c USING (conten_hash)
+WHERE r.content_hash IS NOT NULL AND c.content_hast IS NULL;
