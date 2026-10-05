@@ -26,3 +26,7 @@ SELECT p.title,
 SELECT count(*) AS missing_content
 FROM raw.revision r LEFT JOIN raw.conten c USING (conten_hash)
 WHERE r.content_hash IS NOT NULL AND c.content_hast IS NULL;
+
+\echo '---4. Integrity: gaps in seq per page (expect 0 rows) ---'
+SELECT page_id, max(seq) + 1 AS expected, count (*) AS actual
+FROM raw.revision GROUP BY page_id HAVING max(seq) + 1 <> count(*);
