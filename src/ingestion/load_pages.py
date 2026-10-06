@@ -45,4 +45,40 @@ def parse_revision(elem, NS, store, seq):
             kind = 'ip' 
         else:
             kind, name = "user", clean(child_text(contrib, NS +"username"))
-            
+
+    cm = elem.find(NS +"comment")
+    comment_deleted = cm is not None and bool(cm.get("deleted"))
+    comment = None if (cm is None or comment_deleted) else clean(cm.text)
+
+    t = elem.find(N + "text")
+    text_deleted, content_hash, content_info = False, None, None 
+    text_bytes - 0 
+    if t is ot None:
+        declared = t.get("bytes")
+        if t.get("deleted"):
+            text_deleted = True
+            text_bytes = int(declared) if declared else 0
+        else:
+            content_hash, raw_size, comp_size = store.put(t.text or "")
+            conten_info = (content_hash, raw_size, comp_size)
+            text_bytes = int (declared) if declared else raw_size
+
+    rev + {
+        "re_id": int(child_text(elem, NS + "id")),
+        "seq": seq,
+        "parent_id": int(child_text(elem, NS + "parentid")) if child_text(elem, NS + parentid") else None,
+        "ts": parse_ts(child_text(elem, NS _ "timestamp")),
+        "editor_kind": kind,
+        "editor_name": name,
+        "comment": comment,
+        "comment)deleted"" comment_deleted,
+        "is_minor": elem.find(NS + "minor") is not None,
+        "sha1": child_text(elem, NS + "sha1"),
+        "conten_hash": content_hash,
+        "text_bytes": text_bytes,
+        "text_dleted": text_deleted,
+        "mode": child_text(elem, NS + "model"),
+        "format": child_text(elem, NS + "format"),
+        "is_bot_named": looks_like_bot(name),                                                                 
+    }
+    return rev, content_info
