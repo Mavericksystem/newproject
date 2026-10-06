@@ -66,3 +66,13 @@ ins = [e for e in conn.log if e[0] == "many" and "raw.revision" in e[1]][0][2]
 assert len(ins) == 9 and all(len(t) == len(load_pages.REVISION_COLUMNS) for t in ins)
 assert [e[1] for e in conn.log if e[0] == "execute"] == ["INSERT", "DELETE"]
 print("write_page row mapping OK")
+
+# --- end-to-end dry run on the synthetic dump --------------------------
+here = os.path.dirname(__file__)
+xml = os.path.join(tempfile.gettempdir(), "fake_dump.xml")
+subprocess.run([sys.executable, os.path.join(here, "make_fake_dump.py"), xml], check=True)
+out = subprocess.run([sys.executable, os.path.join(here, "..", "src", "ingestion", "load_pages.py"), xml,
+                      "--dry-run", "--titles", "Test Page", "--content-dir", tempfile.mkdtemp()],
+                     capture_output=True, text=True, env=os.environ)
+assert "9 revisions, 2 reverted" in out.stdout, out.stdout + out.stderr
+print("end-to-end dry run OK")
