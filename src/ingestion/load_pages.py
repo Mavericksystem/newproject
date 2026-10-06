@@ -24,3 +24,7 @@ def open_dump(path):
 def child_text(elem, tag):
     c = elem.find(tag)
     return c.text if c is not None else None
+
+def clean(s):
+    """postgres text cannot hold NUL characters."""
+    return s.replace("\x00", "") if s else s
