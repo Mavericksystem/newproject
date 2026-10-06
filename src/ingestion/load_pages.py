@@ -82,3 +82,12 @@ def parse_revision(elem, NS, store, seq):
         "is_bot_named": looks_like_bot(name),                                                                 
     }
     return rev, content_info
+
+REVISION_COLUMNS = [
+    "rev_id", "page_id", "seq", "parent_id", "ts", "editor_kind", "editor_name", "comment",
+    "comment_deleted", "is_minor", "sha1", "content_hash", "text_bytes", "text_deleted",
+    "model", "format", "is_bot_named", "is_null_edit", "is_identity_revert", "reverts_to_rev_id",
+    "reverted_by_rev_id", "is_blanked", "is_mass_removal", "comment_looks_revert", "ingest_run_id",
+]
+INSERT_REVISION = "INSERT INTO raw.revision ({}) VALUES ({})".format(
+    ", ".join(REVISION_COLUMNS), ", ".join(["%s"] * len(REVISION_COLUMNS)))
