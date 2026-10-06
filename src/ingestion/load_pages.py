@@ -11,8 +11,8 @@ from content_store import ContentStore
 from revision_flags import compute_flags
 
 LOADER_VERSION = "0.1.0"
-DEFAULT_TITLES = ["Johm Thune", "Peter Crouch", "Asian giant hornet", "Bisphenol A", "Elon University"]
-DEFAUT_DSN = os.environ.get("DATABASE_url", "postgresql://wiki:wiki@localhost:5433/temporal")
+DEFAULT_TITLES = ["John Thune", "Peter Crouch", "Asian giant hornet", "Bisphenol A", "Elon University"]
+DEFAULT_DSN = os.environ.get("DATABASE_url", "postgresql://wiki:wiki@localhost:5433/temporal")
 
 def open_dump(path):
     if path.endswith(".bz2"):
@@ -31,15 +31,16 @@ def clean(s):
 
 def looks_like_bot(name):
     n = (name or "").lower()
-    return n.endswith("bot") or "bot" in n or "bot" in n or "(bot)" in n
+    return n.endswith("bot") or "bot" in n or "(bot)" in n
+DEFAULT_DSN = os.environ.get("DATABASE_URL", "postgresql://wiki:wiki@localhost:5433/temporal")
 
 def parse_ts(s):
-    return datetime.striptime(s, "%Y-%m-%dT%H:%SZ").replace(tzingo= timezone.utc)
+    return datetime.fromisoformat(s.replace("Z", "+00:00")).astimezone(timezone.utc)
 
 def parse_revision(elem, NS, store, seq):
     """Turn a <revision> element into a dict, storing its wikitext. Returns (rev, content_info)."""
-    contrib = elem.find(NS + "contibutor")
-    kind, name = "delted", None
+    contrib = elem.find(NS + "contributor")
+    kind, name = "deleted", None
     if contrib is not None and not contrib.get("deleted"):
         if contrib.find(NS + "ip") is not None:
             kind = 'ip' 
@@ -50,9 +51,9 @@ def parse_revision(elem, NS, store, seq):
     comment_deleted = cm is not None and bool(cm.get("deleted"))
     comment = None if (cm is None or comment_deleted) else clean(cm.text)
 
-    t = elem.find(N + "text")
+    t = elem.find(NS + "text")
     text_deleted, content_hash, content_info = False, None, None 
-    text_bytes - 0 
+    text_bytes = 0 
     if t is not None:
         declared = t.get("bytes")
         if t.get("deleted"):
@@ -60,11 +61,11 @@ def parse_revision(elem, NS, store, seq):
             text_bytes = int(declared) if declared else 0
         else:
             content_hash, raw_size, comp_size = store.put(t.text or "")
-            conten_info = (content_hash, raw_size, comp_size)
+            content_info = (content_hash, raw_size, comp_size)
             text_bytes = int (declared) if declared else raw_size
 
-    rev + {
-        "re_id": int(child_text(elem, NS + "id")),
+    rev = {
+        "rev_id": int(child_text(elem, NS + "id")),
         "seq": seq,
         "parent_id": int(child_text(elem, NS + "parentid")) if child_text(elem, NS + "parentid") else None,
         "ts": parse_ts(child_text(elem, NS + "timestamp")),
@@ -74,10 +75,10 @@ def parse_revision(elem, NS, store, seq):
         "comment_deleted": comment_deleted,
         "is_minor": elem.find(NS + "minor") is not None,
         "sha1": child_text(elem, NS + "sha1"),
-        "conten_hash": content_hash,
+        "content_hash": content_hash,
         "text_bytes": text_bytes,
-        "text_dleted": text_deleted,
-        "mode": child_text(elem, NS + "model"),
+        "text_deleted": text_deleted,
+        "model": child_text(elem, NS + "model"),
         "format": child_text(elem, NS + "format"),
         "is_bot_named": looks_like_bot(name),                                                                 
     }
@@ -138,9 +139,9 @@ def main():
     print(f"Loading: {selection}" + ("  [dry run]" if args.dry_run else f"  [ingest_run {run_id}]"))
 
     def want(p):
-            if args.all_articles:
-                return p["ns"] == 0 and not p["is_redirect"]
-            return p["title"] in wanted
+        if args.all_articles:
+            return p["ns"] == 0 and not p["is_redirect"]
+        return p["title"] in wanted
     
     t0 = time.time()
     pages_done, revs_done, found = 0, 0, set()
