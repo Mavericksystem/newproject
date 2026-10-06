@@ -39,3 +39,30 @@ with tempfile.TemporaryDirectory() as d:
     n_files = sum(len(f) for _, _, f in os.walk(d))
     assert n_files == 2, n_files
     print("content store OK (dedupe, unicode, empty text, round-trip)")
+
+    # --- write_page builds correct rows (fake connection) ------------------
+class FakeCur:
+    def __init__(self, log): self.log = log
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+    def execute(self, sql, params=None): self.log.append(("execute", sql.split()[0], params))
+    def executemany(self, sql, rows): rows = list(rows); self.log.append(("many", sql[:40], rows))
+class FakeTx:
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+class FakeConn:
+    def __init__(self): self.log = []
+    def transaction(self): return FakeTx()
+    def cursor(self): return FakeCur(self.log)
+
+conn = FakeConn()
+page = {"page_id": 100, "ns": 0, "title": "T", "is_redirect": False, "redirect_target": None}
+for r in revs:
+    r.update({"seq": r["rev_id"] - 1, "parent_id": None, "ts": None, "editor_kind": "user", "editor_name": "n",
+              "comment_deleted": False, "is_minor": False, "content_hash": None, "model": "wikitext",
+              "format": "text/x-wiki", "is_bot_named": False})
+load_pages.write_page(conn, 7, page, revs, {"abc": (10, 5)})
+ins = [e for e in conn.log if e[0] == "many" and "raw.revision" in e[1]][0][2]
+assert len(ins) == 9 and all(len(t) == len(load_pages.REVISION_COLUMNS) for t in ins)
+assert [e[1] for e in conn.log if e[0] == "execute"] == ["INSERT", "DELETE"]
+print("write_page row mapping OK")
