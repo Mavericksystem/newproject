@@ -91,3 +91,24 @@ REVISION_COLUMNS = [
 ]
 INSERT_REVISION = "INSERT INTO raw.revision ({}) VALUES ({})".format(
     ", ".join(REVISION_COLUMNS), ", ".join(["%s"] * len(REVISION_COLUMNS)))
+
+def write_page(conn, run_id, page, revs, contents):
+    """Replace one page and all its revisions in a single transaction."""
+    rows = [tuple({**r, "page_id": page["page_id"], "ingest_run_id": run_id}[c] for c in REVISION_COLUMNS)
+            for r in revs]
+    with conn.transaction():
+        with conn.cursor() as cur:
+            cur.execute(
+                """INSERT INTO raw.page (page_id, ns, title, is_redirect, redirect_target, ingest_run_id)
+                   VALUES (%s, %s, %s, %s, %s, %s)
+                   ON CONFLICT (page_id) DO UPDATE SET
+                     ns = EXCLUDED.ns, title = EXCLUDED.title, is_redirect = EXCLUDED.is_redirect,
+                     redirect_target = EXCLUDED.redirect_target, ingest_run_id = EXCLUDED.ingest_run_id""",
+                (page["page_id"], page["ns"], page["title"], page["is_redirect"],
+                 page["redirect_target"], run_id))
+            cur.executemany(
+                "INSERT INTO raw.content (content_hash, size_bytes, compressed_bytes) "
+                "VALUES (%s, %s, %s) ON CONFLICT (content_hash) DO NOTHING",
+                [(h, s, c) for h, (s, c) in contents.items()])
+            cur.execute("DELETE FROM raw.revision WHERE page_id = %s", (page["page_id"],))
+            cur.executemany(INSERT_REVISION, rows)
