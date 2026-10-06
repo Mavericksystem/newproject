@@ -136,3 +136,26 @@ def main():
             "INSERT INTO raw.ingest_run (source_file, loader_version, selection) VALUES (%s, %s, %s) RETURNING id",
             (os.path.basename(args.dump), LOADER_VERSION, selection)).fetchone()[0]
     print(f"Loading: {selection}" + ("  [dry run]" if args.dry_run else f"  [ingest_run {run_id}]"))
+
+    def want(p):
+            if args.all_articles:
+                return p["ns"] == 0 and not p["is_redirect"]
+            return p["title"] in wanted
+    
+        t0 = time.time()
+        pages_done, revs_done, found = 0, 0, set()
+        NS, cur = None, None
+        try:
+            with open_dump(args.dump) as f:
+                for event, elem in etree.iterparse(f, events=("start", "end"), huge_tree=True):
+                    if NS is None:
+                        uri = etree.QName(elem).namespace
+                        NS = "{%s}" % uri if uri else ""
+                    tag = elem.tag
+                    if event == "start":
+                        if tag == NS + "page":
+                            cur = {"page_id": None, "ns": None, "title": None, "is_redirect": False,
+                                   "redirect_target": None, "load": None, "revs": [], "contents": {}}
+                        continue
+                    if cur is None:
+                        continue
