@@ -21,3 +21,6 @@ def open_dump(path):
         return gzip.open(path, "rb")
     return open(path, "rb")
 
+def child_text(elem, tag):
+    c = elem.find(tag)
+    return c.text if c is not None else None
