@@ -159,3 +159,38 @@ def main():
                         continue
                     if cur is None:
                         continue
+
+                        if tag == NS + "title":
+                            cur["title"] = clean(elem.text)
+                        elif tag == NS + "ns":
+                            cur["ns"] = int(elem.text)
+                        elif tag == NS + "id" and elem.getparent().tag == NS + "page":
+                            cur["page_id"] = int(elem.text)
+                        elif tag == NS + "redirect":
+                            cur["is_redirect"] = True
+                            cur["redirect_target"] = clean(elem.get("title"))
+                        elif tag == NS + "revision":
+                            if cur["load"] is None:  # page header is complete by the first revision
+                                cur["load"] = want(cur)
+                            if cur["load"]:
+                                rev, info = parse_revision(elem, NS, store, len(cur["revs"]))
+                                cur["revs"].append(rev)
+                                if info:
+                                    cur["contents"][info[0]] = (info[1], info[2])
+                            elem.clear()
+                        elif tag == NS + "page":
+                            if cur["load"] and cur["revs"]:
+                                revs = compute_flags(cur["revs"])
+                                if conn is not None:
+                                    write_page(conn, run_id, cur, revs, cur["contents"])
+                                pages_done += 1
+                                revs_done += len(revs)
+                                found.add(cur["title"])
+                                n_rev = sum(1 for r in revs if r["reverted_by_rev_id"])
+                                print(f"  {cur['title']!r}: {len(revs)} revisions, {n_rev} reverted "
+                                      f"({100 * n_rev / len(revs):.1f}%), {len(cur['contents'])} unique texts "
+                                      f"[{time.time() - t0:.0f}s]")
+                            cur = None
+                            elem.clear()
+                            while elem.getprevious() is not None:
+                                del elem.getparent()[0]
