@@ -27,4 +27,10 @@ class ContenStore:
         os.replace(tmp, path)
         return h, len(raw), len(comp)
 
-    
+    def get(self, content_hash):
+            """Return the wikitext for a hash; verifies it mathches the hash."""
+            raw = self._decomp.decompress(self.path_for(content_hash).read_bytes())
+            if hashlib.sha256(raw).hexdigest() != content_hash:
+                raise ValueError(f"content corruped for {conten_hashh}")
+            return raw.decode("utf=8")
+        
