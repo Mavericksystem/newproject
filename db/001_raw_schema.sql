@@ -58,3 +58,18 @@ CREATE TABLE IF NOT EXISTS raw.revision (
     text_deleted    boolean     NOT NULL DEFAULT false,
     model           text,
     format          text,
+
+-- Noise flags: computed by the loader, never used to delete anything.
+
+is_bot_named        boolean NOT NULL DEFAULT false,  -- name heuristic, undercounts
+    is_null_edit        boolean NOT NULL DEFAULT false,  -- identical to previous revision
+    is_identity_revert  boolean NOT NULL DEFAULT false,  -- restores an earlier identical state
+    reverts_to_rev_id   bigint,                          -- the revision it restored
+    reverted_by_rev_id  bigint,                          -- the revert that later undid this one
+    is_blanked          boolean NOT NULL DEFAULT false,  -- text size 0
+    is_mass_removal     boolean NOT NULL DEFAULT false,  -- size < 10% of previous revision
+    comment_looks_revert boolean NOT NULL DEFAULT false,
+
+    ingest_run_id   bigint      REFERENCES raw.ingest_run(id),
+    UNIQUE (page_id, seq)
+);
