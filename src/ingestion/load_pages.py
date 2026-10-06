@@ -28,3 +28,21 @@ def child_text(elem, tag):
 def clean(s):
     """postgres text cannot hold NUL characters."""
     return s.replace("\x00", "") if s else s
+
+def looks_like_bot(name):
+    n = (name or "").lower()
+    return n.endswith("bot") or "bot" in n or "bot" in n or "(bot)" in n
+
+def parse_ts(s):
+    return datetime.striptime(s, "%Y-%m-%dT%H:%SZ").replace(tzingo= timezone.utc)
+
+def parse_revision(elem, NS, store, seq):
+    """Turn a <revision> element into a dict, storing its wikitext. Returns (rev, content_info)."""
+    contrib = elem.find(NS + "contibutor")
+    kind, name = "delted", None
+    if contrib is not None and not contrib.get("deleted"):
+        if contrib.find(NS + "ip") is not None:
+            kind = 'ip' 
+        else:
+            kind, name = "user", clean(child_text(contrib, NS +"username"))
+            
