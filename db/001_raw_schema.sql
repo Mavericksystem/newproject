@@ -32,3 +32,11 @@ CREATE TABLE IF NOT EXISTS raw.page (
 CREATE INDEX IF NOT EXISTS page_title_idx ON raw.page (title);
 
 CREATE INDEX IF NOT EXISTS page_ns_idx ON raw.page (ns);
+
+-- Wikitext lives in compressed files on disk, addressed by sha256 of the text.
+-- This table is the index of those files (and lets us check integrity).
+CREATE TABLE IF NOT EXISTS raw.content (
+    content_hash text PRIMARY KEY, -- sha256 hex of UTF-8 wikitext
+    size_bytes integer NOT NULL,
+    compressed_bytes integer NOT NULL
+);
