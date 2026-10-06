@@ -40,3 +40,21 @@ CREATE TABLE IF NOT EXISTS raw.content (
     size_bytes integer NOT NULL,
     compressed_bytes integer NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS raw.revision (
+    rev_id          bigint      PRIMARY KEY,
+    page_id         bigint      NOT NULL REFERENCES raw.page(page_id),
+    seq             integer     NOT NULL,            -- 0-based position in the dump for this page
+    parent_id       bigint,                          -- may point outside the loaded set
+    ts              timestamptz NOT NULL,            -- wiki time
+    editor_kind     text        NOT NULL CHECK (editor_kind IN ('user', 'ip', 'deleted')),
+    editor_name     text,                            -- registered users only; IPs are never stored
+    comment         text,
+    comment_deleted boolean     NOT NULL DEFAULT false,
+    is_minor        boolean     NOT NULL DEFAULT false,
+    sha1            text,                            -- as given by the dump (base-36)
+    content_hash    text        REFERENCES raw.content(content_hash),  -- NULL when text deleted
+    text_bytes      integer     NOT NULL DEFAULT 0,
+    text_deleted    boolean     NOT NULL DEFAULT false,
+    model           text,
+    format          text,
