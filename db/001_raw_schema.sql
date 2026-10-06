@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS raw.revision (
 
 -- Noise flags: computed by the loader, never used to delete anything.
 
+
 is_bot_named        boolean NOT NULL DEFAULT false,  -- name heuristic, undercounts
     is_null_edit        boolean NOT NULL DEFAULT false,  -- identical to previous revision
     is_identity_revert  boolean NOT NULL DEFAULT false,  -- restores an earlier identical state
@@ -73,3 +74,20 @@ is_bot_named        boolean NOT NULL DEFAULT false,  -- name heuristic, undercou
     ingest_run_id   bigint      REFERENCES raw.ingest_run(id),
     UNIQUE (page_id, seq)
 );
+
+CREATE INDEX IF NOT EXISTS revision_page_ts_idx ON raw.revision (page_id, ts);
+
+CREATE INDEX IF NOT EXISTS revision_content_idx ON raw.revision (content_hash);
+
+CREATE INDEX IF NOT EXISTS revision_sha1_idx ON raw.revision (sha1);
+
+-- Proposed default for downstream queries: revisions that survived and have text.
+-- Reverted, null-edit and text-deleted revisions stay in raw.revision for audit.
+CREATE OR REPLACE VIEW raw.revision_default AS
+SELECT *
+FROM raw.revision
+WHERE
+    reverted_by_rev_id IS NULL
+    AND NOT is_null_edit
+    AND NOT text_deleted
+    AND content_hash IS NOT NULL;
