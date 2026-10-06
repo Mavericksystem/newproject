@@ -35,6 +35,8 @@ minio-data/
 *.pem
 *.key
 secrets/
+.vscode/
+profile_report.json
 
 # ---------- Python ----------
 __pycache__/
