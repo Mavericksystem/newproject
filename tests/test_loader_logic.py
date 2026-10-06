@@ -26,3 +26,16 @@ assert by[7]["is_identity_revert"] and by[7]["reverts_to_rev_id"] == 5 and by[7]
 assert not by[8]["is_blanked"] and not by[8]["is_mass_removal"]
 assert [r["rev_id"] for r in revs if r["reverted_by_rev_id"]] == [3, 6]
 print("flags OK")
+
+# --- content store -----------------------------------------------------
+with tempfile.TemporaryDirectory() as d:
+    s = ContentStore(d)
+    h1, n1, c1 = s.put("héllo wikitext {{x}} 日本")
+    h2, n2, c2 = s.put("héllo wikitext {{x}} 日本")          # same text -> same file, no-op
+    assert h1 == h2 and n1 == n2 and c1 == c2
+    assert s.get(h1) == "héllo wikitext {{x}} 日本"
+    he, ne, _ = s.put("")
+    assert s.get(he) == "" and ne == 0
+    n_files = sum(len(f) for _, _, f in os.walk(d))
+    assert n_files == 2, n_files
+    print("content store OK (dedupe, unicode, empty text, round-trip)")
