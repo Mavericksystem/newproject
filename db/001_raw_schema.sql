@@ -18,3 +18,17 @@ CREATE TABLE IF NOT EXISTS raw.ingest_run (
     revisions_loaded integer NOT NULL DEFAULT 0,
     error text
 );
+
+-- page_id is stable; titles are not (never key on title).
+CREATE TABLE IF NOT EXISTS raw.page (
+    page_id bigint PRIMARY KEY,
+    ns integer NOT NULL,
+    title text NOT NULL, -- title at dump time
+    is_redirect boolean NOT NULL DEFAULT false,
+    redirect_target text,
+    ingest_run_id bigint REFERENCES raw.ingest_run (id)
+);
+
+CREATE INDEX IF NOT EXISTS page_title_idx ON raw.page (title);
+
+CREATE INDEX IF NOT EXISTS page_ns_idx ON raw.page (ns);
