@@ -112,3 +112,27 @@ def write_page(conn, run_id, page, revs, contents):
                 [(h, s, c) for h, (s, c) in contents.items()])
             cur.execute("DELETE FROM raw.revision WHERE page_id = %s", (page["page_id"],))
             cur.executemany(INSERT_REVISION, rows)
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("dump")
+    ap.add_argument("--titles", nargs="*", default=None, help="exact page titles (default: the 5 prototype pages)")
+    ap.add_argument("--all-articles", action="store_true", help="load every ns0 non-redirect article")
+    ap.add_argument("--content-dir", default="data/content")
+    ap.add_argument("--dsn", default=DEFAULT_DSN)
+    ap.add_argument("--dry-run", action="store_true", help="don't write to Postgres")
+    args = ap.parse_args()
+
+    wanted = set(args.titles) if args.titles else set(DEFAULT_TITLES)
+    selection = "all ns0 non-redirect articles" if args.all_articles else "titles: " + ", ".join(sorted(wanted))
+    store = ContentStore(args.content_dir)
+
+    conn, run_id = None, None
+    if not args.dry_run:
+        import psycopg  # imported here so --dry-run works without it
+        conn = psycopg.connect(args.dsn, autocommit=True)
+        run_id = conn.execute(
+            "INSERT INTO raw.ingest_run (source_file, loader_version, selection) VALUES (%s, %s, %s) RETURNING id",
+            (os.path.basename(args.dump), LOADER_VERSION, selection)).fetchone()[0]
+    print(f"Loading: {selection}" + ("  [dry run]" if args.dry_run else f"  [ingest_run {run_id}]"))
