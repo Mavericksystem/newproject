@@ -27,3 +27,11 @@ revs_a = [
     rev(8, 7, "2006-01-01T00:00:00Z", "gone", "secret", del_text=True, del_contrib=True),
     rev(9, 8, "2006-02-01T00:00:00Z", "Frank", good + " final"),
 ]
+xml = f"""<mediawiki xmlns="{NS}" version="0.11" xml:lang="en">
+<siteinfo><sitename>Wikipedia</sitename><namespaces><namespace key="0" case="first-letter" /></namespaces></siteinfo>
+<page><title>Test Page</title><ns>0</ns><id>100</id>{''.join(revs_a)}</page>
+<page><title>Some Redirect</title><ns>0</ns><id>101</id><redirect title="Test Page" />{rev(20, 0, "2007-01-01T00:00:00Z", "Zed", "#REDIRECT [[Test Page]]")}</page>
+<page><title>Talk:Test Page</title><ns>1</ns><id>102</id>{rev(30, 0, "2007-01-01T00:00:00Z", "Zed", "talk")}</page>
+<page><title>Not Wanted</title><ns>0</ns><id>103</id>{rev(40, 0, "2007-01-01T00:00:00Z", "Zed", "other")}</page>
+</mediawiki>"""
+open(sys.argv[1], "w", encoding="utf-8").write(xml)
