@@ -61,3 +61,38 @@ def test_ordered_by_position_then_part_index():
     assert ids(s) == [1, 2, 3, 4, 5]
     assert hashes(s) == {1: "h1a", 2: "h2", 3: "h3", 4: "h4a", 5: "h5a"}
 
+
+def test_end_of_interval_is_exclusive():
+    
+    s = state_at(VERSIONS, dt("2020-06-01"))
+    assert hashes(s)[1] == "h1b"
+    assert ids(s).count(1) == 1
+
+
+def test_removed_lineage_disappears_at_its_end():
+    assert ids(state_at(VERSIONS, dt("2020-12-31"))) == [1, 2, 3, 4, 5]
+    assert ids(state_at(VERSIONS, dt("2021-01-01"))) == [1, 3, 4, 5]
+
+
+def test_open_ended_versions_are_live_in_the_future():
+    s = state_at(VERSIONS, dt("2030-01-01"))
+    assert ids(s) == [1, 3, 4, 5]
+    assert hashes(s) == {1: "h1b", 3: "h3", 4: "h4b", 5: "h5a"}
+
+
+def test_never_two_versions_of_one_lineage():
+    for probe in ["2020-01-01", "2020-04-01", "2020-05-01", "2020-06-01",
+                  "2020-09-01", "2021-01-01", "2025-01-01"]:
+        got = ids(state_at(VERSIONS, dt(probe)))
+        assert len(got) == len(set(got)), probe
+
+
+def test_input_order_does_not_matter():
+    a = state_at(VERSIONS, dt("2020-07-01"))
+    b = state_at(list(reversed(VERSIONS)), dt("2020-07-01"))
+    assert a == b
+
+
+def test_returns_version_text():
+    s = state_at(VERSIONS, dt("2020-07-01"))
+    assert {x["lineage_id"]: x["text"] for x in s}[1] == "text-h1b"
