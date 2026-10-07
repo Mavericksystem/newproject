@@ -69,3 +69,18 @@ def split_sections(wikitext):
     emit()
     return out
 
+
+def to_plain(wikitext):
+    """Wikitext -> plain prose. Templates, <ref> contents and comments are dropped,
+    as are Category/File/Image links. Known limit: table markup ({| ... |}) is not
+    stripped."""
+    code = mwparserfromhell.parse(wikitext)
+    for link in code.filter_wikilinks():
+        if str(link.title).strip().lower().startswith(_NON_PROSE_LINK_PREFIXES):
+            try:
+                code.remove(link)
+            except ValueError:
+                pass  # already removed together with an enclosing node
+    text = code.strip_code(normalize=True, collapse=True)
+    return "\n".join(line.rstrip() for line in text.splitlines()).strip()
+
