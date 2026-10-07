@@ -44,3 +44,20 @@ def ids(versions):
 
 def hashes(versions):
     return {x["lineage_id"]: x["content_hash"] for x in versions}
+
+
+# --- state_at -------------------------------------------------------------
+
+def test_before_first_revision_is_empty():
+    assert state_at(VERSIONS, dt("2019-12-31")) == []
+
+
+def test_start_of_interval_is_inclusive():
+    assert ids(state_at(VERSIONS, dt("2020-01-01"))) == [1, 2, 5]
+
+
+def test_ordered_by_position_then_part_index():
+    s = state_at(VERSIONS, dt("2020-03-15"))
+    assert ids(s) == [1, 2, 3, 4, 5]
+    assert hashes(s) == {1: "h1a", 2: "h2", 3: "h3", 4: "h4a", 5: "h5a"}
+
