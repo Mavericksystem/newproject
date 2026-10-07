@@ -124,3 +124,23 @@ def test_removed_and_modified():
         (4, "h4a", "h4b")
     ]
 
+
+def test_same_instant_has_no_changes():
+    c = changes_between(VERSIONS, dt("2020-07-01"), dt("2020-07-01"))
+    assert c == {"added": [], "removed": [], "modified": []}
+
+
+def test_reversed_range_is_an_error():
+    try:
+        changes_between(VERSIONS, dt("2021-01-01"), dt("2020-01-01"))
+    except ValueError:
+        return
+    raise AssertionError("expected ValueError when t1 > t2")
+
+
+if __name__ == "__main__":
+    tests = [(n, f) for n, f in sorted(globals().items()) if n.startswith("test_") and callable(f)]
+    for name, fn in tests:
+        fn()
+        print(f"ok  {name}")
+    print(f"state_at OK ({len(tests)} tests)")
