@@ -57,3 +57,9 @@ CREATE TABLE IF NOT EXISTS knowledge.chunk_version (
             &&
     )
 );
+
+CREATE INDEX IF NOT EXISTS chunk_version_page_during_idx ON knowledge.chunk_version USING gist (page_id, valid_during);
+
+CREATE INDEX IF NOT EXISTS chunk_version_lineage_idx ON knowledge.chunk_version (lineage_id, from_rev);
+
+CREATE INDEX IF NOT EXISTS chunk_version_hash_idx ON knowledge.chunk_version (content_hash);
