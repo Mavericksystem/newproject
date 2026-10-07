@@ -96,3 +96,31 @@ def test_input_order_does_not_matter():
 def test_returns_version_text():
     s = state_at(VERSIONS, dt("2020-07-01"))
     assert {x["lineage_id"]: x["text"] for x in s}[1] == "text-h1b"
+
+
+
+# --- changes_between ------------------------------------------------------
+
+def test_added_and_modified():
+    c = changes_between(VERSIONS, dt("2020-02-01"), dt("2020-07-01"))
+    assert ids(c["added"]) == [3, 4]
+    assert c["removed"] == []
+    assert [(o["lineage_id"], o["content_hash"], n["content_hash"]) for o, n in c["modified"]] == [
+        (1, "h1a", "h1b")
+    ]
+
+
+def test_changed_and_changed_back_is_not_modified():
+    
+    c = changes_between(VERSIONS, dt("2020-02-01"), dt("2020-07-01"))
+    assert 5 not in [o["lineage_id"] for o, _ in c["modified"]]
+
+
+def test_removed_and_modified():
+    c = changes_between(VERSIONS, dt("2020-07-01"), dt("2021-06-01"))
+    assert ids(c["removed"]) == [2]
+    assert c["added"] == []
+    assert [(o["lineage_id"], o["content_hash"], n["content_hash"]) for o, n in c["modified"]] == [
+        (4, "h4a", "h4b")
+    ]
+
