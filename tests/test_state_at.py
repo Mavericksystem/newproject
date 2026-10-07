@@ -4,7 +4,7 @@ import sys
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src", "knowledge"))
-from state_at import state_at, changes_between  # noqa: E402
+from state_at import state_at, changes_between  
 
 
 def dt(s):
