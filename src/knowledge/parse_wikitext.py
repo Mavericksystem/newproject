@@ -84,3 +84,26 @@ def to_plain(wikitext):
     text = code.strip_code(normalize=True, collapse=True)
     return "\n".join(line.rstrip() for line in text.splitlines()).strip()
 
+
+def main(argv):
+    """Hand-check helper:
+        python src/knowledge/parse_wikitext.py rev.txt          # section outline
+        python src/knowledge/parse_wikitext.py rev.txt 3        # plain text of section 3
+    """
+    if len(argv) < 2:
+        raise SystemExit("usage: parse_wikitext.py <wikitext-file> [section-position]")
+    with open(argv[1], encoding="utf-8-sig") as f:
+        sections = split_sections(f.read())
+    if len(argv) >= 3:
+        s = sections[int(argv[2])]
+        print(f"[{s.position}] {s.path or '(lead)'}  occurrence={s.occurrence}\n")
+        print(to_plain(s.wikitext))
+        return
+    print(f"parser: {PARSER_VERSION}")
+    print(f"{len(sections)} sections\n")
+    for s in sections:
+        print(f"{s.position:3}  L{s.level}  occ{s.occurrence}  {len(s.wikitext):7}B  {s.path or '(lead)'}")
+
+
+if __name__ == "__main__":
+    main(sys.argv)
