@@ -91,3 +91,35 @@ def split_text(text, max_chars=MAX_CHARS):
         parts.append(cur)
     return parts
 
+
+def _plain(wikitext, cache):
+    if cache is None:
+        return to_plain(wikitext)
+    key = sha256_text(wikitext)
+    if key not in cache:
+        cache[key] = to_plain(wikitext)
+    return cache[key]
+
+
+def chunk_sections(sections, max_chars=MAX_CHARS, plain_cache=None):
+    """Turn Sections into Chunks. Sections whose plain text is empty (only templates,
+    refs or categories) produce no chunk. Pass a dict as plain_cache to avoid re-converting
+    identical section wikitext across revisions."""
+    chunks = []
+    for s in sections:
+        plain = _plain(s.wikitext, plain_cache)
+        if not plain:
+            continue
+        for part_index, text in enumerate(split_text(plain, max_chars)):
+            chunks.append(
+                Chunk(
+                    position=len(chunks),
+                    section_path=s.path,
+                    occurrence=s.occurrence,
+                    part_index=part_index,
+                    text=text,
+                    content_hash=sha256_text(text),
+                )
+            )
+    return chunks
+
