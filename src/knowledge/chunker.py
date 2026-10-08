@@ -54,3 +54,40 @@ def _hard_split(piece, max_chars):
         out.append(cur)
     return out
 
+
+def _units(text, max_chars):
+    """Yield (separator_before, unit) pairs, each unit at most max_chars long."""
+    paras = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
+    for pi, para in enumerate(paras):
+        lead_sep = "\n\n" if pi else ""
+        if len(para) <= max_chars:
+            yield lead_sep, para
+            continue
+        bits = _BOUNDARY.split(para)  # [piece, sep, piece, sep, ...]
+        sep = lead_sep
+        for i in range(0, len(bits), 2):
+            if i:
+                sep = bits[i - 1]
+            if not bits[i]:
+                continue
+            for j, sub in enumerate(_hard_split(bits[i], max_chars)):
+                yield (sep if j == 0 else " "), sub
+
+
+def split_text(text, max_chars=MAX_CHARS):
+    """Split plain text into parts of at most max_chars. Short text comes back unchanged."""
+    if len(text) <= max_chars:
+        return [text]
+    parts, cur = [], ""
+    for sep, unit in _units(text, max_chars):
+        if not cur:
+            cur = unit
+        elif len(cur) + len(sep) + len(unit) <= max_chars:
+            cur += sep + unit
+        else:
+            parts.append(cur)
+            cur = unit
+    if cur:
+        parts.append(cur)
+    return parts
+
