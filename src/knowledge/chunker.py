@@ -123,3 +123,24 @@ def chunk_sections(sections, max_chars=MAX_CHARS, plain_cache=None):
             )
     return chunks
 
+
+def chunk_wikitext(wikitext, max_chars=MAX_CHARS, plain_cache=None):
+    return chunk_sections(split_sections(wikitext), max_chars, plain_cache)
+
+
+def main(argv):
+    """Hand-check helper:  python src/knowledge/chunker.py rev.txt [max_chars]"""
+    if len(argv) < 2:
+        raise SystemExit("usage: chunker.py <wikitext-file> [max_chars]")
+    max_chars = int(argv[2]) if len(argv) >= 3 else MAX_CHARS
+    with open(argv[1], encoding="utf-8-sig") as f:
+        chunks = chunk_wikitext(f.read(), max_chars)
+    print(f"{PARSER_VERSION}  {CHUNKER_VERSION}  max_chars={max_chars}")
+    print(f"{len(chunks)} chunks\n")
+    for c in chunks:
+        label = c.section_path or "(lead)"
+        print(f"{c.position:3}  part{c.part_index}  occ{c.occurrence}  {len(c.text):5} chars  {c.content_hash[:8]}  {label}")
+
+
+if __name__ == "__main__":
+    main(sys.argv)
