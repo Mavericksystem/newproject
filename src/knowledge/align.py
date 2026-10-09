@@ -151,3 +151,16 @@ class Aligner:
                 if sibling is not None:
                     origin, related = "split", [sibling]
             self._open(self._new_lineage(rev_id, origin, related), c, rev_id)
+
+
+    def finish(self):
+        """Return (lineages, versions). Versions still live have to_rev None."""
+        return self.lineages, self.versions
+
+
+def align_revisions(revisions):
+    """revisions: iterable of (rev_id, chunks) in chronological order."""
+    a = Aligner()
+    for rev_id, chunks in revisions:
+        a.add_revision(rev_id, chunks)
+    return a.finish()
