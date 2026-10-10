@@ -58,3 +58,23 @@ def verify_replay(revisions, versions, expected):
     lineages, versions = aligner.finish()
     verify_replay(revisions, versions, expected)
     return lineages, versions
+
+
+def summarize(revisions, lineages, versions, seconds):
+    by_lin = Counter(v.lineage_id for v in versions)
+    last = {}
+    for v in versions:  # versions are appended in time order, so the last one per lineage wins
+        last[v.lineage_id] = v
+    origins = Counter(l.origin for l in lineages)
+    live = sum(1 for v in versions if v.to_rev is None)
+    print(f"\nrevisions processed : {len(revisions)}")
+    print(f"lineages            : {len(lineages)}  ({dict(origins)})")
+    print(f"versions            : {len(versions)}  ({live} live at the latest revision)")
+    print(f"build time          : {seconds:.1f}s")
+    print("replay check        : OK (every revision rebuilt exactly from the versions)")
+    print("\nmost-edited lineages (hand-check these):")
+    for lid, cnt in by_lin.most_common(8):
+        v = last[lid]
+        state = "live" if v.to_rev is None else f"ended at rev {v.to_rev}"
+        label = v.section_path or "(lead)"
+        print(f"  lineage {lid:5}  {cnt:4} versions  part{v.part_index}  {state}  {label}")
