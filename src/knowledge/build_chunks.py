@@ -121,3 +121,23 @@ def write_to_db(conn, page_id, started_at, revisions, lineages, versions, rebuil
                 rows,
             )
     return run_id
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    which = ap.add_mutually_exclusive_group(required=True)
+    which.add_argument("--title", help="exact page title, namespace 0")
+    which.add_argument("--page-id", type=int)
+    ap.add_argument("--content-dir", default="data/content")
+    ap.add_argument("--dsn", default=DEFAULT_DSN)
+    ap.add_argument("--limit", type=int, help="only the first N revisions; implies --dry-run")
+    ap.add_argument("--dry-run", action="store_true", help="build and check, write nothing")
+    ap.add_argument("--rebuild", action="store_true", help="replace chunks already built for the page")
+    args = ap.parse_args()
+    dry_run = args.dry_run or args.limit is not None
+ 
+    started_at = datetime.now(timezone.utc)
+    with psycopg.connect(args.dsn) as conn:
+        if args.page_id is not None:
+            rows = conn.execute(
+                "SELECT page_id, title FROM raw.page WHERE page_id = %s", (args.page_id,)).fetchall()
