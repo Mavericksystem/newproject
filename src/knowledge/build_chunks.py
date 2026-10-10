@@ -141,3 +141,34 @@ def main():
         if args.page_id is not None:
             rows = conn.execute(
                 "SELECT page_id, title FROM raw.page WHERE page_id = %s", (args.page_id,)).fetchall()
+
+            else:
+            rows = conn.execute(
+                "SELECT page_id, title FROM raw.page WHERE title = %s AND ns = 0", (args.title,)).fetchall()
+        if len(rows) != 1:
+            raise SystemExit(f"expected exactly one matching page, found {len(rows)}")
+        page_id, title = rows[0]
+ 
+        if not dry_run and not args.rebuild:
+            n = conn.execute(
+                "SELECT count(*) FROM knowledge.chunk_lineage WHERE page_id = %s", (page_id,)).fetchone()[0]
+            if n:
+                raise SystemExit(f"page {page_id} already has {n} lineages; pass --rebuild to replace them")
+ 
+        revisions = conn.execute(
+            "SELECT rev_id, ts, content_hash FROM raw.revision_default "
+            "WHERE page_id = %s ORDER BY ts, seq", (page_id,)).fetchall()
+        total_raw = conn.execute(
+            "SELECT count(*) FROM raw.revision WHERE page_id = %s", (page_id,)).fetchone()[0]
+        if not revisions:
+            raise SystemExit(f"page {page_id} has no revisions in raw.revision_default")
+        if args.limit is not None:
+            revisions = revisions[: args.limit]
+        print(f"page {page_id} '{title}': {len(revisions)} revisions to process "
+              f"({total_raw} in raw.revision)")
+        print(f"versions: {PARSER_VERSION}  {BUILD_VERSION}")
+        print("mode: " + ("DRY RUN, nothing will be written" if dry_run else "write"), flush=True)
+ 
+        t0 = time.time()
+        lineages, versions = build_page(revisions, ContentStore(args.content_dir).get)
+        summarize(revisions, lineages, versions, time.time() - t0)
