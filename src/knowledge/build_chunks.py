@@ -34,3 +34,27 @@ def verify_replay(revisions, versions, expected):
     for i in range(n):
         if sorted(got[i]) != expected[i]:
             raise RuntimeError(f"replay mismatch at revision {revisions[i][0]} (index {i})")
+
+        def build_page(revisions, get_text, progress_every=100):
+    """revisions: list of (rev_id, ts, content_hash) in chronological order.
+    get_text(content_hash) -> wikitext. Returns (lineages, versions)."""
+    aligner = Aligner()
+    plain_cache = {}  # section wikitext hash -> plain text, shared across revisions
+    expected = []
+    t0 = time.time()
+    total = len(revisions)
+    for n, (rev_id, _ts, content_hash) in enumerate(revisions, 1):
+        try:
+            wikitext = get_text(content_hash)
+        except Exception as e:
+            raise RuntimeError(f"could not read wikitext for revision {rev_id}") from e
+        chunks = chunk_wikitext(wikitext, plain_cache=plain_cache)
+        aligner.add_revision(rev_id, chunks)
+        expected.append(sorted((c.position, c.part_index, c.section_path, c.content_hash) for c in chunks))
+        if progress_every and n % progress_every == 0:
+            el = time.time() - t0
+            eta = el / n * (total - n)
+            print(f"  {n}/{total} revisions  {el:.0f}s elapsed  ~{eta:.0f}s left", flush=True)
+    lineages, versions = aligner.finish()
+    verify_replay(revisions, versions, expected)
+    return lineages, versions
