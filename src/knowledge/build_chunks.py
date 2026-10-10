@@ -172,3 +172,14 @@ def main():
         t0 = time.time()
         lineages, versions = build_page(revisions, ContentStore(args.content_dir).get)
         summarize(revisions, lineages, versions, time.time() - t0)
+
+        if dry_run:
+            print("\ndry run: nothing written")
+            return
+        run_id = write_to_db(conn, page_id, started_at, revisions, lineages, versions, args.rebuild)
+        print(f"\nwritten: build_run {run_id}, {len(lineages)} lineages, {len(versions)} versions")
+ 
+ 
+if __name__ == "__main__":
+    main()
+ 
