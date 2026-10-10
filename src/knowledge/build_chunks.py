@@ -78,3 +78,46 @@ def summarize(revisions, lineages, versions, seconds):
         state = "live" if v.to_rev is None else f"ended at rev {v.to_rev}"
         label = v.section_path or "(lead)"
         print(f"  lineage {lid:5}  {cnt:4} versions  part{v.part_index}  {state}  {label}")
+
+        
+def write_to_db(conn, page_id, started_at, revisions, lineages, versions, rebuild):
+    ts_of = {rev_id: ts for rev_id, ts, _ in revisions}
+    with conn.transaction():
+        if rebuild:
+            conn.execute("DELETE FROM knowledge.chunk_version WHERE page_id = %s", (page_id,))
+            conn.execute("DELETE FROM knowledge.chunk_lineage WHERE page_id = %s", (page_id,))
+        run_id = conn.execute(
+            """INSERT INTO knowledge.build_run
+               (page_id, parser_version, chunker_version, started_at, finished_at, status,
+                revisions_processed, lineages_created, versions_created)
+               VALUES (%s, %s, %s, %s, now(), 'done', %s, %s, %s) RETURNING id""",
+            (page_id, PARSER_VERSION, BUILD_VERSION, started_at,
+             len(revisions), len(lineages), len(versions)),
+        ).fetchone()[0]
+ 
+        db_id = {}  # Aligner local lineage id -> database id
+        for lin in lineages:
+            related = [db_id[r] for r in lin.related] or None
+            db_id[lin.local_id] = conn.execute(
+                """INSERT INTO knowledge.chunk_lineage
+                   (page_id, first_rev_id, origin, related_lineage_ids, build_run_id)
+                   VALUES (%s, %s, %s, %s::bigint[], %s) RETURNING id""",
+                (page_id, lin.first_rev_id, lin.origin, related, run_id),
+            ).fetchone()[0]
+ 
+        rows = [
+            (db_id[v.lineage_id], page_id, v.section_path, v.part_index, v.position, v.text,
+             v.content_hash, v.from_rev, v.to_rev, ts_of[v.from_rev],
+             ts_of[v.to_rev] if v.to_rev is not None else None, PARSER_VERSION, run_id)
+            for v in versions
+        ]
+        with conn.cursor() as cur:
+            cur.executemany(
+                """INSERT INTO knowledge.chunk_version
+                   (lineage_id, page_id, section_path, part_index, position, text, content_hash,
+                    from_rev, to_rev, valid_during, parser_ver, build_run_id)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s,
+                           tstzrange(%s::timestamptz, %s::timestamptz, '[)'), %s, %s)""",
+                rows,
+            )
+    return run_id
