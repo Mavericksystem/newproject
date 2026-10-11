@@ -5,16 +5,16 @@ import time
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
- 
+
 import psycopg
- 
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "ingestion"))
- 
+
 from align import ALIGNER_VERSION, Aligner  # noqa: E402
 from chunker import CHUNKER_VERSION, chunk_wikitext  # noqa: E402
 from content_store import ContentStore  # noqa: E402
 from parse_wikitext import PARSER_VERSION  # noqa: E402
- 
+
 DEFAULT_DSN = os.environ.get("DATABASE_URL", "postgresql://wiki:wiki@localhost:5433/temporal")
 BUILD_VERSION = f"{CHUNKER_VERSION}+{ALIGNER_VERSION}"
 
@@ -35,7 +35,8 @@ def verify_replay(revisions, versions, expected):
         if sorted(got[i]) != expected[i]:
             raise RuntimeError(f"replay mismatch at revision {revisions[i][0]} (index {i})")
 
-        def build_page(revisions, get_text, progress_every=100):
+
+def build_page(revisions, get_text, progress_every=100):
     """revisions: list of (rev_id, ts, content_hash) in chronological order.
     get_text(content_hash) -> wikitext. Returns (lineages, versions)."""
     aligner = Aligner()
@@ -79,7 +80,7 @@ def summarize(revisions, lineages, versions, seconds):
         label = v.section_path or "(lead)"
         print(f"  lineage {lid:5}  {cnt:4} versions  part{v.part_index}  {state}  {label}")
 
-        
+
 def write_to_db(conn, page_id, started_at, revisions, lineages, versions, rebuild):
     ts_of = {rev_id: ts for rev_id, ts, _ in revisions}
     with conn.transaction():
@@ -94,7 +95,7 @@ def write_to_db(conn, page_id, started_at, revisions, lineages, versions, rebuil
             (page_id, PARSER_VERSION, BUILD_VERSION, started_at,
              len(revisions), len(lineages), len(versions)),
         ).fetchone()[0]
- 
+
         db_id = {}  # Aligner local lineage id -> database id
         for lin in lineages:
             related = [db_id[r] for r in lin.related] or None
@@ -104,7 +105,7 @@ def write_to_db(conn, page_id, started_at, revisions, lineages, versions, rebuil
                    VALUES (%s, %s, %s, %s::bigint[], %s) RETURNING id""",
                 (page_id, lin.first_rev_id, lin.origin, related, run_id),
             ).fetchone()[0]
- 
+
         rows = [
             (db_id[v.lineage_id], page_id, v.section_path, v.part_index, v.position, v.text,
              v.content_hash, v.from_rev, v.to_rev, ts_of[v.from_rev],
@@ -135,26 +136,25 @@ def main():
     ap.add_argument("--rebuild", action="store_true", help="replace chunks already built for the page")
     args = ap.parse_args()
     dry_run = args.dry_run or args.limit is not None
- 
+
     started_at = datetime.now(timezone.utc)
     with psycopg.connect(args.dsn) as conn:
         if args.page_id is not None:
             rows = conn.execute(
                 "SELECT page_id, title FROM raw.page WHERE page_id = %s", (args.page_id,)).fetchall()
-
-            else:
+        else:
             rows = conn.execute(
                 "SELECT page_id, title FROM raw.page WHERE title = %s AND ns = 0", (args.title,)).fetchall()
         if len(rows) != 1:
             raise SystemExit(f"expected exactly one matching page, found {len(rows)}")
         page_id, title = rows[0]
- 
+
         if not dry_run and not args.rebuild:
             n = conn.execute(
                 "SELECT count(*) FROM knowledge.chunk_lineage WHERE page_id = %s", (page_id,)).fetchone()[0]
             if n:
                 raise SystemExit(f"page {page_id} already has {n} lineages; pass --rebuild to replace them")
- 
+
         revisions = conn.execute(
             "SELECT rev_id, ts, content_hash FROM raw.revision_default "
             "WHERE page_id = %s ORDER BY ts, seq", (page_id,)).fetchall()
@@ -168,7 +168,7 @@ def main():
               f"({total_raw} in raw.revision)")
         print(f"versions: {PARSER_VERSION}  {BUILD_VERSION}")
         print("mode: " + ("DRY RUN, nothing will be written" if dry_run else "write"), flush=True)
- 
+
         t0 = time.time()
         lineages, versions = build_page(revisions, ContentStore(args.content_dir).get)
         summarize(revisions, lineages, versions, time.time() - t0)
@@ -178,8 +178,7 @@ def main():
             return
         run_id = write_to_db(conn, page_id, started_at, revisions, lineages, versions, args.rebuild)
         print(f"\nwritten: build_run {run_id}, {len(lineages)} lineages, {len(versions)} versions")
- 
- 
+
+
 if __name__ == "__main__":
     main()
- 
