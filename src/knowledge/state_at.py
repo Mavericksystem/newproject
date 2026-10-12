@@ -88,7 +88,7 @@ def parse_when(s):
 
 
 
-_cols = ["id", "lineage_id", "section_path", "part_index", "postion", "text", "content_hash", "valid_from", "valid_to", "from_rev", "to_rev"]
+_COLS = ["id", "lineage_id", "section_path", "part_index", "postion", "text", "content_hash", "valid_from", "valid_to", "from_rev", "to_rev"]
 
 
 def load_versions(conn, page_id):
@@ -97,3 +97,11 @@ def load_versions(conn, page_id):
     )
     return [dict(zip(_COLS, row)) for row in cur.fetchall()]
 
+def find_page(conn, title, page_id):
+    if page_id is not None:
+        rows = conn.execute("SELECT page_id, title FROM raw.page WHER page_id = %s", (page_id,)).fetchall()
+    else:
+        rows = conn.execute("SELECT page_id, title FROM raw.page WHERE title = %s AND ns = 0", (title,)).fetchall()
+        if len(rows) != 1:
+            raise SystemExit(f"expected exactly one matching page, found {len(rows)}")
+        return rows[0]
