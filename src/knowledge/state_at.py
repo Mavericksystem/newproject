@@ -132,3 +132,31 @@ def main(argv=None):
     p_ch.add_argument("--from", dest="t1", required=True)
     p_ch.add_argument("--to", dest="t2", required=True)
     args = ap.parse_args(argv)
+
+    with psycopg.connect(args.dsn) as conn:
+        page_id, title = find_page(conn, args.title, args.page_id)
+        versions = load_versions(conn, page_id)
+        if not versions:
+            raise SystemExit(f"page {page_id} has no chunk versions; run build_chunks.py first")
+ 
+        if args.cmd == "at":
+            when = parse_when(args.when)
+            live = state_at(versions, when)
+            sql_ids = {
+                r[0] for r in conn.execute(
+                    "SELECT id FROM knowledge.chunk_version "
+                    "WHERE page_id = %s AND valid_during @> %s::timestamptz", (page_id, when))
+            }
+            if sql_ids != {v["id"] for v in live}:
+                raise SystemExit("MISMATCH: SQL range lookup and state_at() returned different chunks")
+            rev = conn.execute(
+                "SELECT rev_id, ts FROM raw.revision_default WHERE page_id = %s AND ts <= %s "
+                "ORDER BY ts DESC, seq DESC LIMIT 1", (page_id, when)).fetchone()
+            print(format_at(title, page_id, when, live, rev, args.width, args.full, args.section))
+            print(f"\ncheck: SQL range lookup returned the same {len(sql_ids)} chunks")
+        else:
+            t1, t2 = parse_when(args.t1), parse_when(args.t2)
+            if t1 > t2:
+                raise SystemExit("--from must not be after --to")
+            print(format_changes(title, page_id, t1, t2, changes_between(versions, t1, t2),
+                                 args.width, args.full))
