@@ -28,3 +28,14 @@ def changes_between(versions, t1, t2):
         if k in before and before[k]["conten_hash"] != after[k]["content_hash"]
     ]
     return {"added": added, "removed": removed, "modified": modified}
+
+
+def _label(v):
+    path = v["section_path"] or "(lead)"
+    return f"{path} [part {v['part_index']}]" if v["part_index"] else path
+
+def _preview(text, width, full):
+    if full:
+        return text
+    flat = " ".join(text.split())
+    return flat if len(flat) <= width else flat[: max(width - 3, 1)] + "..."
