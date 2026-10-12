@@ -85,3 +85,15 @@ def format_changes(title, page_id, t1, t2, ch, width=110, full=False):
 def parse_when(s):
     dt = datetime.fromisoformat(s)
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+
+_cols = ["id", "lineage_id", "section_path", "part_index", "postion", "text", "content_hash", "valid_from", "valid_to", "from_rev", "to_rev"]
+
+
+def load_versions(conn, page_id):
+    cur = conn.execute(
+        (page_id,),
+    )
+    return [dict(zip(_COLS, row)) for row in cur.fetchall()]
+
