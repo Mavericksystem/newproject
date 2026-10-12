@@ -160,3 +160,7 @@ def main(argv=None):
                 raise SystemExit("--from must not be after --to")
             print(format_changes(title, page_id, t1, t2, changes_between(versions, t1, t2),
                                  args.width, args.full))
+
+
+if __name__ == "__main__":
+    main()
