@@ -39,3 +39,7 @@ def _preview(text, width, full):
         return text
     flat = " ".join(text.split())
     return flat if len(flat) <= width else flat[: max(width - 3, 1)] + "..."
+
+def _in_section(v, section):
+    p = v["section_path"]
+    return p == section or p.startswith(section + " > ")
