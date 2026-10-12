@@ -12,3 +12,6 @@ def _live(v, t):
 def _order(v):
     return (v["postion"], v["part_index"], v["lineage_id"])
 
+def state_at(versions, t):
+    return sorted((v for v in versions if _live(v, t)), key=_order)
+
