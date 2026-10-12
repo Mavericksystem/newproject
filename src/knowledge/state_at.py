@@ -61,3 +61,22 @@ def format_at(title, page_id, when, live, rev, width=110, full=False, section=No
         out.append(("   " + body.replace("\n", "\n   ")) if full else "     " + body)
     return "\n".join(out)
 
+
+
+def format_changes(title, page_id, t1, t2, ch, width=110, full=False):
+    out = [
+        f"{title} (page {page_id}) changes from {t1.isoformat()} to {t2.isoformat()}",
+        f"added {len(ch['added'])}, removed {len(ch['removed'])}, modified {len(ch['modified'])}",
+        "-" * 60,
+    ]
+    for v in ch["added"]:
+        out.append(f"+ ADDED     {_label(v)}  (lineage {v['lineage_id']}, since rev {v['from_rev']})")
+        out.append("    " + _preview(v["text"], width, full))
+    for v in ch["removed"]:
+        out.append(f"- REMOVED   {_label(v)}  (lineage {v['lineage_id']}, last seen in rev {v['from_rev']})")
+        out.append("    " + _preview(v["text"], width, full))
+    for old, new in ch["modified"]:
+        out.append(f"~ MODIFIED  {_label(new)}  (lineage {new['lineage_id']}, rev {old['from_rev']} -> {new['from_rev']})")
+        out.append("    before: " + _preview(old["text"], width, full))
+        out.append("    after : " + _preview(new["text"], width, full))
+    return "\n".join(out)
