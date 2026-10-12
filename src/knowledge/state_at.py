@@ -105,3 +105,30 @@ def find_page(conn, title, page_id):
         if len(rows) != 1:
             raise SystemExit(f"expected exactly one matching page, found {len(rows)}")
         return rows[0]
+
+
+def main(argv=None):
+    import argparse
+ 
+    import psycopg
+ 
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+ 
+    common = argparse.ArgumentParser(add_help=False)
+    which = common.add_mutually_exclusive_group(required=True)
+    which.add_argument("--title", help="exact page title, namespace 0")
+    which.add_argument("--page-id", type=int)
+    common.add_argument("--dsn", default=DEFAULT_DSN)
+    common.add_argument("--width", type=int, default=110, help="preview width in characters")
+    common.add_argument("--full", action="store_true", help="print full chunk text")
+ 
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    p_at = sub.add_parser("at", parents=[common], help="page state at a time")
+    p_at.add_argument("--when", required=True)
+    p_at.add_argument("--section", help="only this section and its subsections")
+    p_ch = sub.add_parser("changes", parents=[common], help="what changed between two times")
+    p_ch.add_argument("--from", dest="t1", required=True)
+    p_ch.add_argument("--to", dest="t2", required=True)
+    args = ap.parse_args(argv)
