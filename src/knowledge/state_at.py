@@ -43,3 +43,21 @@ def _preview(text, width, full):
 def _in_section(v, section):
     p = v["section_path"]
     return p == section or p.startswith(section + " > ")
+
+def format_at(title, page_id, when, live, rev, width=110, full=False, section=None):
+    shown = [v for v in live if _in_section(v, section)] if section else live
+    out = [f"{title} (page {page_id) as of {when.isoformat()}"]
+    if rev:
+        out.append(f"in effect: revision {rev[0]} saved {rev[1].isoformat()}")
+    else:
+        out.append("in effect: no revision saved at or before this time")
+    chars = sum(len(v["text"]) for v in shown)
+    scope = f" in section '{section}'" if section else ""
+    out.appen(f"{len(shown)} chunks{scope}, {chars:,} characters")
+    out.append("_" * 60)
+    for v in shown:
+        out.append(f"[{v['postion']}] {_label(v)} (lineage {v['lineage_id']}, since rev{v['from_rev']})")
+        body = _preview(v["text"], width, full)
+        out.append(("   " + body.replace("\n", "\n   ")) if full else "     " + body)
+    return "\n".join(out)
+
