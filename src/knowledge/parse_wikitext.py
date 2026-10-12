@@ -1,72 +1,100 @@
+import re
 import sys
 from dataclasses import dataclass
 
 import mwparserfromhell
-from mwparserfromhell.nodes import Heading
 
-PARSER_VERSION = f"mwparserfromhell-{mwparserfromhell.__version__}/sections-1"
+# Bump the suffix whenever section splitting or plain-text rules change.
+PARSER_VERSION = f"mwparserfromhell-{mwparserfromhell.__version__}/sections-2"
 PATH_SEP = " > "
 
-
+# Links that are navigation/media, not prose. ([[:Category:X]] with a leading colon is a
+# visible link and is kept.)
 _NON_PROSE_LINK_PREFIXES = ("category:", "file:", "image:")
+
+# Blocks in which "== x ==" must not count as a heading. An unclosed comment runs to the
+# end of the text (as MediaWiki does). A self-closing tag such as <nowiki/> is not a block.
+_MASKED = re.compile(
+    r"<!--.*?(?:-->|\Z)"
+    r"|<(nowiki|pre|source|syntaxhighlight|math)\b[^>]*(?<!/)>.*?</\1\s*>",
+    re.DOTALL | re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
 class Section:
-    position: int    
-    level: int      
-    heading: str     
-    path: str        
-    occurrence: int  
-    wikitext: str    
+    position: int    # 0-based order among emitted (non-empty) sections
+    level: int       # 0 = lead, otherwise the heading level (2 for "== x ==")
+    heading: str     # '' for the lead
+    path: str        # 'History > Early use'; '' for the lead
+    occurrence: int  # 0-based count of earlier headings with the same path
+    wikitext: str    # raw body wikitext, heading line excluded, stripped
 
 
-def _heading_title(node):
-    title = node.title.strip_code().strip()
+def _mask(wikitext):
+    """Same-length copy of the text with the masked blocks replaced by spaces
+    (newlines kept, so line offsets stay identical)."""
+    return _MASKED.sub(lambda m: re.sub(r"[^\n]", " ", m.group(0)), wikitext)
+
+
+def _heading(line):
+    """Return (level, raw_title) if the (masked) line is a heading, else None."""
+    s = line.rstrip()
+    if len(s) < 3 or s[0] != "=" or s[-1] != "=":
+        return None
+    lead = len(s) - len(s.lstrip("="))
+    trail = len(s) - len(s.rstrip("="))
+    if lead == len(s):  # only "=" characters
+        return None
+    level = min(lead, trail, 6)
+    title = s[level : len(s) - level].strip()
     if not title:
-        title = str(node.title).strip()
-    return " ".join(title.split())
+        return None
+    return level, title
+
+
+def _clean_title(raw):
+    """Strip wiki markup from a heading title ('[[X|y]]' -> 'y', "''x''" -> 'x')."""
+    try:
+        text = mwparserfromhell.parse(raw).strip_code().strip()
+    except Exception:
+        text = ""
+    return " ".join((text or raw).split())
 
 
 def split_sections(wikitext):
     """Split wikitext into flat sections. Sections with an empty body are skipped."""
-    code = mwparserfromhell.parse(wikitext)
+    masked = _mask(wikitext)
+
+    heads = []  # (line_start, line_end, level, title)
+    pos = 0
+    for line in masked.split("\n"):
+        end = pos + len(line)
+        h = _heading(line)
+        if h:
+            heads.append((pos, end, h[0], _clean_title(h[1])))
+        pos = end + 1
 
     out = []
-    buf = []
-    stack = []  
-    seen = {}   
-    cur = {"level": 0, "heading": "", "path": "", "occ": 0}
 
-    def emit():
-        body = "".join(buf).strip()
-        buf.clear()
+    def emit(level, heading, path, occ, start, end):
+        body = wikitext[start:end].strip()
         if body:
-            out.append(
-                Section(
-                    position=len(out),
-                    level=cur["level"],
-                    heading=cur["heading"],
-                    path=cur["path"],
-                    occurrence=cur["occ"],
-                    wikitext=body,
-                )
-            )
+            out.append(Section(len(out), level, heading, path, occ, body))
 
-    for node in code.nodes:
-        if isinstance(node, Heading):
-            emit()
-            title = _heading_title(node)
-            while stack and stack[-1][0] >= node.level:
-                stack.pop()
-            stack.append((node.level, title))
-            path = PATH_SEP.join(t for _, t in stack)
-            occ = seen.get(path, 0)
-            seen[path] = occ + 1
-            cur.update(level=node.level, heading=title, path=path, occ=occ)
-        else:
-            buf.append(str(node))
-    emit()
+    emit(0, "", "", 0, 0, heads[0][0] if heads else len(wikitext))
+
+    stack = []  # (level, title) of the currently open headings
+    seen = {}   # path -> how many times it has appeared
+    for i, (_start, line_end, level, title) in enumerate(heads):
+        while stack and stack[-1][0] >= level:
+            stack.pop()
+        stack.append((level, title))
+        path = PATH_SEP.join(t for _, t in stack)
+        occ = seen.get(path, 0)
+        seen[path] = occ + 1
+        body_end = heads[i + 1][0] if i + 1 < len(heads) else len(wikitext)
+        emit(level, title, path, occ, line_end, body_end)
     return out
 
 
